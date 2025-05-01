@@ -1,81 +1,42 @@
-name: Build APK
-
+name: CI
 on:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    env:
-      # avoid any interactive stty calls
-      TERM: dumb
-      # point Buildozer at this SDK install
-      ANDROIDSDK: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
-      ANDROIDNDK: ${{ github.workspace }}/.buildozer/android/platform/android-ndk-r25b
+    runs-on: ubuntu-20.04
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+uses: actions/checkout@v2
 
-      - name: Cache Buildozer state
-        uses: actions/cache@v3
-        with:
-          path: $HOME/.buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-
-      - name: Install native tools & dependencies
+      used to cache dependencies with a timeout
+name: Get Date
+        id: get-date
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential wget unzip zip \
-            libsdl2-dev libswscale-dev libavformat-dev libavcodec-dev \
-            libunwind-dev zlib1g-dev libsqlite3-dev libffi-dev libncurses5-dev
+          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+        shell: bash
 
-      - name: Download Android SDK command-line tools
-        run: |
-          mkdir -p $ANDROIDSDK/cmdline-tools
-          cd $ANDROIDSDK/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
-          unzip sdk.zip
-          mv cmdline-tools latest
-          rm sdk.zip
-
-      - name: Install SDK platforms & build-tools, accept licenses
-        run: |
-          # accept all licenses
-          yes | $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROIDSDK --licenses
-          # install what Buildozer needs (platform-tools, API-33, build-tools including aidl)
-          $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager \
-            --sdk_root=$ANDROIDSDK \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2"
-
-      - name: Add pip user-bin to PATH
-        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
-
-      - name: Install Python deps
-        run: pip install --user cython buildozer
-
-      - name: Build the APK
-        run: buildozer -v android debug
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+name: Cache Buildozer global directory
+        uses: actions/cache@v2
         with:
-          name: built-apk
-          path: bin/*.apk
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Replace with your path
+
+uses: actions/cache@v2
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
+
+name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
