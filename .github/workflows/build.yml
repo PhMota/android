@@ -19,9 +19,15 @@ jobs:
         sudo apt install -y build-essential python3-pip python3-setuptools zip unzip openjdk-17-jdk git
         pip install --user buildozer cython
 
+    - name: Accept Android SDK licenses
+      run: |
+        mkdir -p $HOME/.android
+        echo '8933bad161af4178b1185d1a37fbf41ea5269c55' > $HOME/.android/repositories.cfg
+        yes | sdkmanager --licenses || true
+
     - name: Build the APK
       run: |
-        export PATH=$HOME/.local/bin:$PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
         buildozer -v android debug
 
     - name: Upload APK
