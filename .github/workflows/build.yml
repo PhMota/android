@@ -1,0 +1,31 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main  # or "master" or any branch you use
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential python3-pip python3-setuptools zip unzip openjdk-17-jdk git
+        pip install --user buildozer cython
+
+    - name: Build the APK
+      run: |
+        export PATH=$HOME/.local/bin:$PATH
+        buildozer -v android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: built-apk
+        path: bin/*.apk
