@@ -10,9 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Prevent any 'stty' TTY-related errors:
+      # avoid any interactive stty calls
       TERM: dumb
-      # Point Buildozer at its own SDK/NDK installs:
+      # point Buildozer at this SDK install
       ANDROIDSDK: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
       ANDROIDNDK: ${{ github.workspace }}/.buildozer/android/platform/android-ndk-r25b
 
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Cache Buildozer global
+      - name: Cache Buildozer state
         uses: actions/cache@v3
         with:
           path: $HOME/.buildozer
@@ -37,28 +37,44 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install native & Python deps
+      - name: Install native tools & dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential zip unzip \
+            build-essential wget unzip zip \
             libsdl2-dev libswscale-dev libavformat-dev libavcodec-dev \
             libunwind-dev zlib1g-dev libsqlite3-dev libffi-dev libncurses5-dev
-          python -m pip install --upgrade pip
-          pip install --user cython buildozer
 
-      - name: Accept Android SDK licenses
+      - name: Download Android SDK command-line tools
         run: |
-          yes | sdkmanager --sdk_root=$ANDROIDSDK --licenses || true
+          mkdir -p $ANDROIDSDK/cmdline-tools
+          cd $ANDROIDSDK/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
+          unzip sdk.zip
+          mv cmdline-tools latest
+          rm sdk.zip
 
-      - name: Add pip binaries to PATH
+      - name: Install SDK platforms & build-tools, accept licenses
+        run: |
+          # accept all licenses
+          yes | $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROIDSDK --licenses
+          # install what Buildozer needs (platform-tools, API-33, build-tools including aidl)
+          $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager \
+            --sdk_root=$ANDROIDSDK \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+
+      - name: Add pip user-bin to PATH
         run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
 
-      - name: Build the APK
-        run: |
-          buildozer -v android debug
+      - name: Install Python deps
+        run: pip install --user cython buildozer
 
-      - name: Upload APK
+      - name: Build the APK
+        run: buildozer -v android debug
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: built-apk
