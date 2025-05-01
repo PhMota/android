@@ -13,8 +13,8 @@ jobs:
       # Prevent any 'stty' TTY-related errors:
       TERM: dumb
       # Point Buildozer at its own SDK/NDK installs:
-      ANDROIDSDK: ${{ runner.workspace }}/.buildozer/android/platform/android-sdk
-      ANDROIDNDK: ${{ runner.workspace }}/.buildozer/android/platform/android-ndk-r25b
+      ANDROIDSDK: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
+      ANDROIDNDK: ${{ github.workspace }}/.buildozer/android/platform/android-ndk-r25b
 
     steps:
       - name: Checkout repository
