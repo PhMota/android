@@ -4,7 +4,7 @@ on:
 
 jobs:
   build:
-    runs-on: Linux Mint 21.3
+    runs-on: mint-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build APK
